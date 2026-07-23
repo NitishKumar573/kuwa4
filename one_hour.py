@@ -35,23 +35,19 @@ MARKET_CLOSE = "21:30"
 # ---- FIXED FETCH SCHEDULE ----
 # 1-Hour candles are fetched ONLY at these exact clock times (once each), never on every tick.
 ONE_HOUR_FETCH_TIMES = ["09:15", "10:15", "11:15", "12:15", "13:15", "14:15"]
-ONE_HOUR_FETCH_TIMES2 = ["09:00", "10:00", "11:00", "12:15", "13:15", "14:15"]
+ONE_HOUR_FETCH_TIMES2 = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00"]
 
 
 # 10-Minute candles are fetched every 10 minutes EXCEPT at the ":15" mark, because ":15" is
 # already handled by the 1-Hour fetch above and would otherwise just re-read the same
 # just-closed 1H candle boundary (e.g. 9:25, 9:35, 9:45, 9:55, 10:05, 10:25, 10:35 ... — never 9:15/10:15/...).
 TEN_MIN_FETCH_MINUTES = {5, 25, 35, 45, 55}
+TEN_MIN_FETCH_MINUTES = {0, 10, 20, 30, 40,50}
 smartApi = SmartConnect(api_key=API_KEY)
 totp = pyotp.TOTP(TOTP_SECRET).now()
 
 WATCHLIST = [
-    {
-        "trading_symbol": "ELECDMBL30JUL26FUT",
-        "token": "568846",
-        "exchange": "MCX",
-           # optional, informational only in this template
-    },
+   
     {
         "trading_symbol": "SENSEX",
         "exchange": "BSE",
@@ -60,6 +56,16 @@ WATCHLIST = [
     # Add more symbols here...
 ]
 # LOGGING
+WATCHLIST2 = [
+    
+     {
+        "trading_symbol": "ELECDMBL30JUL26FUT",
+        "token": "568846",
+        "exchange": "MCX",
+           # optional, informational only in this template
+    },
+    # Add more symbols here...
+]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -280,7 +286,10 @@ def process_1h_bias(smart_api,symbol_info, sym_state):
                 log.info(f"{symbol}: HA red but normal candle green — no sell bias yet.")
         else:
             log.info(f"{symbol}: 1H HA candle still GREEN — holding position, no exit bias.")
-# 10-MINUTE TRIGGER LOGIC — runs ONLY at the fixed minute-marks in TEN_MIN_FETCH_MINUTES
+            
+#10-MINUTE TRIGGER LOGIC — runs ONLY at the fixed minute-marks in TEN_MIN_FETCH_MINUTES
+
+#gjbh
 def process_10m_trigger(smart_api, symbol_info, sym_state):
     symbol = symbol_info["trading_symbol"]
 
@@ -432,6 +441,24 @@ def main():
                     time.sleep(1)  # small gap between symbols to respect API rate limits
 
                 save_state(state)
+            elif now.minute in ONE_HOUR_FETCH_TIMES2 and last_10m_marker != current_hm:
+                last_10m_marker = current_hm
+                time.sleep(3)
+                for symbol_info in WATCHLIST2:
+                    try:
+                        process_1h_bias(smart_api, symbol_info, state[symbol_info["trading_symbol"]])
+                    except Exception as e:
+                        log.error(f"Error processing 10min trigger for {symbol_info['trading_symbol']}: {e}", exc_info=True)
+                    time.sleep(1)
+             elif now.minute in TEN_MIN_FETCH_MINUTES and last_10m_marker != current_hm:
+                last_10m_marker = current_hm
+                time.sleep(6)
+                for symbol_info in WATCHLIST2:
+                    try:
+                        process_10m_trigger(smart_api, symbol_info, state[symbol_info["trading_symbol"]])
+                    except Exception as e:
+                        log.error(f"Error processing 10min trigger for {symbol_info['trading_symbol']}: {e}", exc_info=True)
+                    time.sleep(1)  
 
             time.sleep(LOOP_SLEEP_SECONDS)
 
