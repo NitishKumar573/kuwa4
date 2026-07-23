@@ -35,7 +35,7 @@ MARKET_CLOSE = "21:30"
 # ---- FIXED FETCH SCHEDULE ----
 # 1-Hour candles are fetched ONLY at these exact clock times (once each), never on every tick.
 ONE_HOUR_FETCH_TIMES = ["09:15", "10:15", "11:15", "12:15", "13:15", "14:15"]
-ONE_HOUR_FETCH_TIMES2 = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00"]
+ONE_HOUR_FETCH_TIMES2 = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"]
 
 
 # 10-Minute candles are fetched every 10 minutes EXCEPT at the ":15" mark, because ":15" is
