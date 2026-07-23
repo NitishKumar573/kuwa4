@@ -376,7 +376,7 @@ def main():
     c1=False
 
     while True:
-        time.sleep(1)
+        time.sleep(3)
         
         try:
             if not market_is_open():
