@@ -1,0 +1,16 @@
+{
+  "ELECDMBL30JUL26FUT": {
+    "position": null,
+    "pending_signal": null,
+    "pending_signal_1h_close_time": null,
+    "last_processed_1h_time": null,
+    "last_processed_10m_time": null
+  },
+  "SENSEX": {
+    "position": null,
+    "pending_signal": null,
+    "pending_signal_1h_close_time": null,
+    "last_processed_1h_time": null,
+    "last_processed_10m_time": null
+  }
+}
