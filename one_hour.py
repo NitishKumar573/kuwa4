@@ -401,6 +401,9 @@ def main():
             for symbol_info in WATCHLIST:
                 if symbol_info["trading_symbol"] not in state:
                     state[symbol_info["trading_symbol"]] = default_symbol_state()
+            for symbol_info in WATCHLIST2:
+                if symbol_info["trading_symbol"] not in state:
+                    state[symbol_info["trading_symbol"]] = default_symbol_state()
 
             now = datetime.now(ZoneInfo("Asia/Kolkata"))
             current_hm = now.strftime("%H:%M")
@@ -441,7 +444,7 @@ def main():
                     time.sleep(1)  # small gap between symbols to respect API rate limits
 
                 save_state(state)
-             elif now.minute in ONE_HOUR_FETCH_TIMES2 and last_10m_marker != current_hm:
+            elif now.minute in ONE_HOUR_FETCH_TIMES2 and last_10m_marker != current_hm:
                 last_10m_marker = current_hm
                 time.sleep(3)
                 for symbol_info in WATCHLIST2:
@@ -450,7 +453,7 @@ def main():
                     except Exception as e:
                         log.error(f"Error processing 10min trigger for {symbol_info['trading_symbol']}: {e}", exc_info=True)
                     time.sleep(1)
-              elif now.minute in TEN_MIN_FETCH_MINUTES2 and last_10m_marker != current_hm:
+            elif now.minute in TEN_MIN_FETCH_MINUTES2 and last_10m_marker != current_hm:
                  last_10m_marker = current_hm
                  time.sleep(6)
                  for symbol_info in WATCHLIST2:
