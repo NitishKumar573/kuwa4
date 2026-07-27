@@ -406,7 +406,7 @@ def main():
             for symbol_info in WATCHLIST2:
                 if symbol_info["trading_symbol"] not in state:
                     state[symbol_info["trading_symbol"]] = default_symbol_state()
-
+            print(state)
             now = datetime.now(ZoneInfo("Asia/Kolkata"))
             current_hm = now.strftime("%H:%M")
             
@@ -451,6 +451,7 @@ def main():
             elif current_hm in ONE_HOUR_FETCH_TIMES2 and last_10m_marker2 != current_hm:
                 last_10m_marker2 = current_hm
                 time.sleep(3)
+                send_telegram2("rgeg")
                 
                 for symbol_info in WATCHLIST2:
                     try:
