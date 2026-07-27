@@ -327,7 +327,6 @@ def process_10m_trigger(smart_api, symbol_info, sym_state):
                 #place_order(groww, symbol_info, "BUY", order_type="MARKET")
                 sym_state["position"] = {
                     "entry_price": entry_price,
-                    "quantity": symbol_info["quantity"],
                     "stoploss_price":0,
                     "entry_time": last_10m_time,
                 }
