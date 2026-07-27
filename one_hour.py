@@ -306,10 +306,6 @@ def process_10m_trigger(smart_api, symbol_info, sym_state):
     last_10m_time = str(last_10m["time"])
 
     # Only consider 10-min candles that closed AFTER the 1H candle that set the bias
-    bias_time = pd.to_datetime(sym_state["pending_signal_1h_close_time"]) + timedelta(hours=1)
-    if last_10m["time"] < bias_time:
-        return  # 10min candle is stale, hasn't reached the point after 1H close yet
-
     if sym_state["last_processed_10m_time"] == last_10m_time:
         return  # already evaluated this 10-min candle
 
@@ -423,8 +419,10 @@ def main():
 """
             # ---- 1-HOUR window: fetch only once, exactly at 9:15, 10:15, 11:15, 12:15, 1:15, 2:15 ----
             if current_hm in ONE_HOUR_FETCH_TIMES and last_1h_marker != current_hm:
+                
                 time.sleep(3)
                 last_1h_marker = current_hm
+                smart_api = login()
                 log.info(f"=== 1H fetch window {current_hm}: resetting pending state (position kept) for all symbols ===")
                 for symbol_info in WATCHLIST:
                     reset_symbol_state_keep_position(state[symbol_info["trading_symbol"]])
