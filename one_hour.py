@@ -262,6 +262,7 @@ def process_1h_bias(smart_api,symbol_info, sym_state):
     last_ha_1h = get_last_completed(ha_1h)
     ha_color = candle_color(last_ha_1h["ha_open"], last_ha_1h["ha_close"])
     normal_color = candle_color(last_1h["open"], last_1h["close"])
+    print(ha_color,normal_color)
 
     if sym_state["position"] is None:
         # ---- BUY BIAS CHECK ----
@@ -422,7 +423,6 @@ def main():
                 
                 time.sleep(3)
                 last_1h_marker = current_hm
-                smart_api = login()
                 log.info(f"=== 1H fetch window {current_hm}: resetting pending state (position kept) for all symbols ===")
                 for symbol_info in WATCHLIST:
                     reset_symbol_state_keep_position(state[symbol_info["trading_symbol"]])
