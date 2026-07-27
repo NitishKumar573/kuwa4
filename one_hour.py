@@ -245,6 +245,7 @@ def process_1h_bias(smart_api,symbol_info, sym_state):
     symbol = symbol_info["trading_symbol"]
 
     df_1h = fetch_candles(smart_api,symbol_info["token"],symbol_info["exchange"], "ONE_HOUR", 60 * 3)
+    print(df_1h)
     if not is_last_candle_completed(df_1h, 60):
         log.debug(f"{symbol}: last 1H candle not completed yet, skipping this window.")
         return
