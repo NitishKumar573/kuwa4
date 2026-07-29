@@ -32,7 +32,7 @@ ONE_HOUR_FETCH_TIMES2 = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "
 
 TEN_MIN_FETCH_MINUTES = {5, 25, 35, 45, 55}
 TEN_MIN_FETCH_MINUTES2 = {0, 10, 20, 30, 40, 50}
-LOGIN_TIMES = ["09:00", "09:20", "12:00", "15:00", "18:00", "21:00"]
+#LOGIN_TIMES = ["09:00", "09:20", "12:00", "15:00", "18:00", "21:00"]
 
 WATCHLIST = [
     {
@@ -328,10 +328,10 @@ def main():
             current_hm = now.strftime("%H:%M")
 
             # ---- Re-login at scheduled intervals ----
-            if current_hm in LOGIN_TIMES and last_login_marker != current_hm:
+            """if current_hm in LOGIN_TIMES and last_login_marker != current_hm:
                 last_login_marker = current_hm
                 smart_api = login()
-
+"""
             # ---- 1-HOUR window for WATCHLIST (SENSEX) ----
             if current_hm in ONE_HOUR_FETCH_TIMES and last_1h_marker != current_hm:
                 last_1h_marker = current_hm
