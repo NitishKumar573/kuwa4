@@ -357,6 +357,7 @@ def main():
             # ---- 1-HOUR window for WATCHLIST2 (MCX Futures) ----
             elif current_hm in ONE_HOUR_FETCH_TIMES2 and last_1h_marker2 != current_hm:
                 last_1h_marker2 = current_hm
+                send_telegram2("msg")
                 log.info(f"=== 1H fetch window {current_hm} for WATCHLIST2 ===")
                 for symbol_info in WATCHLIST2:
                     reset_symbol_state_keep_position(state[symbol_info["trading_symbol"]])
