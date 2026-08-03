@@ -270,7 +270,7 @@ def process_10m_trigger2(smart_api, state):
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
-            stoploss_price=df_10m["low"].iloc[-3]
+            state["stoploss"]=df_10m["low"].iloc[-3]
             
             log.info(msg)
             send_telegram(msg)
@@ -280,7 +280,7 @@ def process_10m_trigger2(smart_api, state):
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
-            stoploss_price=df_10m["low"].iloc[-3]
+            state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
@@ -289,7 +289,7 @@ def process_10m_trigger2(smart_api, state):
             exit_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
-            stoploss_price=df_10m["high"].iloc[-3]
+            state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
@@ -300,7 +300,7 @@ def process_10m_trigger2(smart_api, state):
             exit_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
-            stoploss_price=df_10m["high"].iloc[-3]
+            state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
@@ -386,14 +386,15 @@ def main():
             if state["position"] is not None:
                 ltp=get_ltp(smart_api,SYMBOL_INFO)
                 if state["signal"]=="BUY":
-                    if(ltp<stoploss_price):
+                    if(ltp<state["stoploss"]):
                        reset_signal_keep_position2()
+                       state["stoploss"]=None
                        msg="SToploss Hit"
                        send_telegram(msg)
                        send_telegram2(msg)
                 else:
-                    if(ltp>stoploss_price):
-                       stoploss_price=None
+                    if(ltp>state["stoploss"]):
+                       state["stoploss"]=None
                        reset_signal_keep_position2()
                        msg="SToploss Hit"
                        send_telegram(msg)
