@@ -3,12 +3,13 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pyotp
 import requests
+#from growwapi import GrowwAPI
 from SmartApi import SmartConnect
+from zoneinfo import ZoneInfo
 
 # CONFIGURATION — SENSEX ONLY
 API_KEY = "3LjGsQyt"
@@ -24,15 +25,16 @@ TELEGRAM_CHAT_ID2 = "7984464288"
 STATE_FILE = "sensex_state.json"
 LOOP_SLEEP_SECONDS = 10
 
+#ONE_HOUR_FETCH_TIMES = ["09:15", "10:15", "11:15", "12:15", "13:15", "14:15", "15:15"]
+TEN_MIN_FETCH_MINUTES = {3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60}
+#LOGIN_TIMES = ["09:00", "12:00", "15:00"]
+
 SYMBOL_INFO = {
     "trading_symbol": "SENSEX",
     "exchange": "BSE",
     "token": "99919000",
 }
 
-ONE_HOUR_FETCH_TIMES = ["09:15", "10:15", "11:15", "12:15", "13:15", "14:15", "15:15"]
-TEN_MIN_FETCH_MINUTES = {5, 25, 35, 45, 55}
-LOGIN_TIMES = ["09:00", "12:00", "15:00"]
 
 # LOGGING
 logging.basicConfig(
@@ -55,21 +57,26 @@ def send_telegram2(message: str):
     except Exception as e:
         log.error(f"Telegram send failed: {e}")
 # STATE MANAGEMENT
+# STATE MANAGEMENT
 def default_state():
     return {
         "position": None,
         "pending_signal": None,
+        "stoploss":None,
+        "signal":None,
+        "sell_value":None,
         "pending_signal_1h_close_time": None,
         "last_processed_1h_time": None,
         "last_processed_10m_time": None,
     }
-
-def reset_signal_keep_position(state):
+def reset_signal_keep_position2(state):
+    state["position"] = None
     state["pending_signal"] = None
     state["pending_signal_1h_close_time"] = None
     state["last_processed_1h_time"] = None
     state["last_processed_10m_time"] = None
-
+    state["signal"] = None
+    state["sell_value"] = None
 def load_state():
     if os.path.exists(STATE_FILE):
         try:
@@ -96,9 +103,9 @@ def login():
     log.info("Logged in to SmartAPI for SENSEX.")
     return obj
 
-# CANDLE FETCH WITH RATE LIMIT CONTROL
 def fetch_candles(smart_api, token, exchange, interval, lookback_minutes):
     to_date = datetime.now(ZoneInfo("Asia/Kolkata"))
+    #to_date = datetime(2026, 7, 30, 14,00, tzinfo=ZoneInfo("Asia/Kolkata"))
     from_date = to_date - timedelta(minutes=lookback_minutes)
     params = {
         "exchange": exchange,
@@ -127,7 +134,6 @@ def fetch_candles(smart_api, token, exchange, interval, lookback_minutes):
             log.error(f"Fetch candle error (Attempt {attempt}): {e}")
         time.sleep(attempt * 3)
     return None
-
 # HEIKIN ASHI & CANDLE UTILS
 def to_heikin_ashi(df):
     ha = df.copy().reset_index(drop=True)
@@ -142,6 +148,7 @@ def to_heikin_ashi(df):
 
 def candle_color(open_p, close_p):
     return "GREEN" if close_p >= open_p else "RED"
+
 
 def get_latest_completed_candle(df, interval_minutes):
     if df is None or len(df) < 2:
@@ -160,6 +167,31 @@ def get_latest_completed_candle(df, interval_minutes):
         return last_row
     else:
         return df.iloc[-2]
+def get_second_latest_completed_candle(df, interval_minutes):
+    # Need at least 3 candles: forming candle + 1st completed + 2nd completed
+    if df is None or len(df) < 3:
+        return None
+
+    last_row = df.iloc[-1]
+    candle_time = last_row["time"]
+
+    if candle_time.tzinfo is None:
+        candle_time = candle_time.tz_localize(ZoneInfo("Asia/Kolkata"))
+
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    candle_close_time = candle_time + timedelta(minutes=interval_minutes)
+
+    # If the last candle (iloc[-1]) has completed:
+    # - iloc[-1] is the 1st (most recent) completed candle
+    # - iloc[-2] is the 2nd completed candle
+    if now >= candle_close_time:
+        return df.iloc[-2]
+    
+    # If the last candle (iloc[-1]) is still forming:
+    # - iloc[-2] is the 1st (most recent) completed candle
+    # - iloc[-3] is the 2nd completed candle
+    else:
+        return df.iloc[-3]
 
 def market_is_open():
     now = datetime.now(ZoneInfo("Asia/Kolkata"))
@@ -167,62 +199,43 @@ def market_is_open():
     close_t = now.replace(hour=15, minute=30, second=0, microsecond=0)
     return open_t <= now <= close_t and now.weekday() < 5
 
-# STRATEGY LOGIC
-def process_1h_bias(smart_api, state):
-    df_1h = fetch_candles(smart_api, SYMBOL_INFO["token"], SYMBOL_INFO["exchange"], "ONE_HOUR", 60 * 5)
-    if df_1h is None or df_1h.empty:
-        msg = f"⚠️ SENSEX: Failed to fetch 1H candles from SmartAPI."
-        log.warning(msg)
-        send_telegram(msg)
-        send_telegram2(msg)
-        return
+import numpy as np
 
-    last_1h = get_latest_completed_candle(df_1h, 60)
-    if last_1h is None:
-        return
+def calculate_wma(series, period):
+    weights = np.arange(1, period + 1)
 
-    last_1h_time = str(last_1h["time"])
-    if state["last_processed_1h_time"] == last_1h_time:
-        return
-    state["last_processed_1h_time"] = last_1h_time
+    return series.rolling(period).apply(
+        lambda prices: np.dot(prices, weights) / weights.sum(),
+        raw=True
+    )
+def get_ltp(smart_api, symbol_info):
+    try:
+        response = smart_api.ltpData(
+            exchange=symbol_info["exchange"],
+            tradingsymbol=symbol_info["trading_symbol"],
+            symboltoken=symbol_info["token"]
+        )
 
-    ha_1h = to_heikin_ashi(df_1h)
-    last_ha_1h = get_latest_completed_candle(ha_1h, 60)
+        if response and response.get("status"):
+            return float(response["data"]["ltp"])
 
-    ha_c = candle_color(last_ha_1h["ha_open"], last_ha_1h["ha_close"])
-    norm_c = candle_color(last_1h["open"], last_1h["close"])
+        log.warning(f"Failed to fetch LTP: {response}")
 
-    if state["position"] is None:
-        if ha_c == "GREEN" and norm_c == "GREEN":
-            state["pending_signal"] = "BUY"
-            state["pending_signal_1h_close_time"] = last_1h_time
-            msg = f"📈 SENSEX: 1H Candle Confirmed GREEN ({last_1h_time}). Watching 10M for BUY trigger."
-            log.info(msg)
-            send_telegram(msg)
-            send_telegram2(msg)
-        else:
-            log.info(f"SENSEX: No 1H Buy Bias (HA={ha_c}, Normal={norm_c}).")
-    else:
-        if ha_c == "RED" and norm_c == "RED":
-            state["pending_signal"] = "SELL"
-            state["pending_signal_1h_close_time"] = last_1h_time
-            msg = f"📉 SENSEX: 1H Candle Confirmed RED ({last_1h_time}). Watching 10M for EXIT trigger."
-            log.info(msg)
-            send_telegram(msg)
-            send_telegram2(msg)
+    except Exception as e:
+        log.error(f"LTP fetch failed for {symbol_info['trading_symbol']}: {e}")
 
-def process_10m_trigger(smart_api, state):
-    if state["pending_signal"] not in ("BUY", "SELL"):
-        return
+    return None
+def process_10m_trigger2(smart_api, state):
 
-    df_10m = fetch_candles(smart_api, SYMBOL_INFO["token"], SYMBOL_INFO["exchange"], "TEN_MINUTE", 10 * 8)
+    df_10m = fetch_candles(smart_api, SYMBOL_INFO["token"], SYMBOL_INFO["exchange"], "THREE_MINUTE", 10 * 8)
+    print(df_10m)
     if df_10m is None or df_10m.empty:
         return
 
     last_10m = get_latest_completed_candle(df_10m, 10)
-    if last_10m is None:
+    """if last_10m is None:
         return
-
+"""
     last_10m_time = str(last_10m["time"])
     if state["last_processed_10m_time"] == last_10m_time:
         return
@@ -230,25 +243,108 @@ def process_10m_trigger(smart_api, state):
 
     ha_10m = to_heikin_ashi(df_10m)
     last_ha_10m = get_latest_completed_candle(ha_10m, 10)
+    
 
     ha_c = candle_color(last_ha_10m["ha_open"], last_ha_10m["ha_close"])
     norm_c = candle_color(last_10m["open"], last_10m["close"])
+    df_10m["WMA5"] = calculate_wma(df_10m["close"], 5)
+    df_10m["WMA11"] = calculate_wma(df_10m["close"], 11)
+    previous = df_10m.iloc[-3]
+    current = df_10m.iloc[-2]
+    third=df_10m.iloc[-4]
+    ha_1=to_heikin_ashi(current)
+    ha_2=to_heikin_ashi(previous)
+    ha_3=to_heikin_ashi(third)
+    ha_1_n_color=candle_color(current["open"],current["close"])
+    ha_2_n_color=candle_color(previous["open"],previous["close"])
+    ha_1_color=candle_color(ha_1["ha_open"],ha_1["ha_close"])
+    ha_2_color=candle_color(ha_2["ha_open"],ha_2["ha_close"])
+    ha_3_color=candle_color(ha_3["ha_open"],ha_3["ha_close"])
+    
 
-    if state["pending_signal"] == "BUY" and ha_c == "GREEN" and norm_c == "GREEN":
-        entry_price = last_10m["close"]
-        state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-        msg = f"✅ BUY TRIGGERED: SENSEX @ ~{entry_price}"
-        log.info(msg)
-        send_telegram(msg)
-        send_telegram2(msg)
-    elif state["pending_signal"] == "SELL" and ha_c == "RED" and norm_c == "RED":
-        exit_price = last_10m["close"]
-        msg = f"✅ SELL TRIGGERED: SENSEX @ ~{exit_price}"
-        log.info(msg)
-        send_telegram(msg)
-        send_telegram2(msg)
-        state["position"] = None
+    
+    print(df_10m)
+    if state["position"] is None:
 
+        if ha_c == "GREEN" and norm_c == "GREEN":
+            entry_price = last_10m["close"]
+            state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
+            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
+            state["stoploss_price"]=df_10m["low"].iloc[-3]
+            state["signal"]="BUY"
+            
+            log.info(msg)
+            send_telegram(msg)
+            send_telegram2(msg)
+            print("1")
+        elif previous["WMA5"] < previous["WMA11"] and current["WMA5"] > current["WMA11"]:
+            entry_price = last_10m["close"]
+            state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
+            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
+            state["stoploss_price"]=df_10m["low"].iloc[-3]
+            log.info(msg)
+            state["signal"]="BUY"
+            send_telegram(msg)
+            send_telegram2(msg)
+            print("2")
+        elif previous["WMA5"] > previous["WMA11"] and current["WMA5"] < current["WMA11"]:
+            exit_price = last_10m["close"]
+            state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
+            msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
+            state["stoploss_price"]=df_10m["low"].iloc[-3]
+            log.info(msg)
+            state["signal"]="SELL"
+            send_telegram(msg)
+            send_telegram2(msg)
+            
+            print("3")
+        
+        elif ha_c == "RED" and norm_c == "RED":
+            exit_price = last_10m["close"]
+            state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
+            msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
+            state["stoploss_price"]=df_10m["low"].iloc[-3]
+            log.info(msg)
+            state["signal"]="SELL"
+            send_telegram(msg)
+            send_telegram2(msg)
+            
+            print("4")
+    else:
+        if ha_1_n_color=="RED" and  ha_1_color=="RED":
+            if ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
+                if ha_3["ha_low"]<ha_2["ha_low"]:
+                    msg = f"Profit booked,sell it"
+                    reset_signal_keep_position2()
+                    send_telegram(msg)
+                    send_telegram2(msg)
+        elif ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
+            state["sell_value"]=df_10m["ha_low"].iloc[-3]
+        elif state["sell_value"] is not None:
+             if df_10m["ha_close"]<state["sell_value"]:
+                  reset_signal_keep_position2()
+                 
+                  msg("Profit booked,sell")
+                  send_telegram(msg)
+                  send_telegram2(2)
+        
+        if ha_1_n_color=="GREEN" and  ha_3_color=="GREEN":
+                    if ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_1_color=="RED":
+                        if ha_3["ha_high"]>ha_2["ha_high"]:
+                            msg = f"Profit booked,buy it"
+                            reset_signal_keep_position2()
+                            send_telegram(msg)
+                            send_telegram2(msg)
+        elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
+                state["sell_value"]=df_10m["ha_low"].iloc[-3]
+        elif state["sell_value"] is not None:
+             if df_10m["ha_close"]>state["sell_value"]:
+                  reset_signal_keep_position2()
+                  msg("Profit booked,buy")
+                  send_telegram(msg)
+                  send_telegram2(2)
+
+    
 # MAIN LOOP
 def main():
     log.info("Starting SENSEX Bot...")
@@ -259,7 +355,7 @@ def main():
     last_10m_marker = None
     last_login_marker = None
 
-    send_telegram("🤖 SENSEX Algo Bot Active.")
+    send_telegram2("🤖 SENSEX Algo Bot Active.")
 
     while True:
         try:
@@ -277,19 +373,35 @@ def main():
                 smart_api = login()"""
 
             # 1-Hour Schedule Check
-            if current_hm in ONE_HOUR_FETCH_TIMES and last_1h_marker != current_hm:
+            """if current_hm in ONE_HOUR_FETCH_TIMES and last_1h_marker != current_hm:
                 last_1h_marker = current_hm
                 log.info(f"=== Running 1H Check for SENSEX ({current_hm}) ===")
                 reset_signal_keep_position(state)
                 process_1h_bias(smart_api, state)
-                save_state(state)
+                save_state(state)"""
 
             # 10-Minute Schedule Check
-            elif now.minute in TEN_MIN_FETCH_MINUTES and last_10m_marker != current_hm:
+            if now.minute in TEN_MIN_FETCH_MINUTES and last_10m_marker != current_hm:
                 last_10m_marker = current_hm
-                process_10m_trigger(smart_api, state)
+                process_10m_trigger2(smart_api, state)
                 save_state(state)
-
+            if state["position"] is not None:
+                ltp=get_ltp(smart_api,SYMBOL_INFO)
+                if state["signal"]=="BUY":
+                    if(ltp<stoploss_price):
+                       reset_signal_keep_position2()
+                       msg="SToploss Hit"
+                       send_telegram(msg)
+                       send_telegram2(msg)
+                else:
+                    if(ltp>stoploss_price):
+                       stoploss_price=None
+                       reset_signal_keep_position2()
+                       msg="SToploss Hit"
+                       send_telegram(msg)
+                       send_telegram2(msg)
+                    
+                
             time.sleep(LOOP_SLEEP_SECONDS)
 
         except KeyboardInterrupt:
