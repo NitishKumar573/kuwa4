@@ -282,6 +282,7 @@ def process_10m_trigger2(smart_api, state):
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+        
             print(state["stoploss"])
             log.info(msg)
             send_telegram(msg)
