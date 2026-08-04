@@ -232,13 +232,12 @@ def process_10m_trigger2(smart_api, state):
         return
 
     last_10m = get_latest_completed_candle(df_10m, 10)
-    """if last_10m is None:
+    if last_10m is None:
         return
-"""
     last_10m_time = str(last_10m["time"])
-    """if state["last_processed_10m_time"] == last_10m_time:
+    if state["last_processed_10m_time"] == last_10m_time:
         return
-    state["last_processed_10m_time"] = last_10m_time"""
+    state["last_processed_10m_time"] = last_10m_time
 
     ha_10m = to_heikin_ashi(df_10m)
     last_ha_10m = get_latest_completed_candle(ha_10m, 10)
@@ -270,6 +269,7 @@ def process_10m_trigger2(smart_api, state):
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+            state["signal"]="BUY"
             print(state["stoploss"])
             
             log.info(msg)
@@ -281,6 +281,7 @@ def process_10m_trigger2(smart_api, state):
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+            state["signal"]="BUY"
         
             print(state["stoploss"])
             log.info(msg)
@@ -291,6 +292,7 @@ def process_10m_trigger2(smart_api, state):
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
+            state["signal"]="SELL"
             print(state["stoploss"])
             state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
@@ -302,6 +304,7 @@ def process_10m_trigger2(smart_api, state):
         elif ha_c == "RED" and norm_c == "RED":
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
+            state["signal"]="SELL"
             msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
             print(state["stoploss"])
@@ -324,7 +327,7 @@ def process_10m_trigger2(smart_api, state):
              if df_10m["ha_close"]<state["sell_value"]:
                   reset_signal_keep_position2(state)
                  
-                  msg("Profit booked,sell")
+                  msg="Profit booked,sell"
                   send_telegram(msg)
                   send_telegram2(2)
         
@@ -341,9 +344,9 @@ def process_10m_trigger2(smart_api, state):
         elif state["sell_value"] is not None:
              if df_10m["close"]>state["sell_value"]:
                   reset_signal_keep_position2(state)
-                  msg("Profit booked,buy")
+                  msg="Profit booked,buy"
                   send_telegram(msg)
-                  send_telegram2(2)
+                  send_telegram2(msg)
 
     
     
