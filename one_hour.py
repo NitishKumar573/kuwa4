@@ -403,6 +403,7 @@ def main():
                        msg="SToploss Hit"
                        send_telegram(msg)
                        send_telegram2(msg)
+            save_state(state)
                     
                 
             time.sleep(LOOP_SLEEP_SECONDS)
