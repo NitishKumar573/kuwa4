@@ -316,14 +316,14 @@ def process_10m_trigger2(smart_api, state):
             if ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
                 if ha_3["ha_low"]<ha_2["ha_low"]:
                     msg = ("Profit booked,sell it")
-                    reset_signal_keep_position2()
+                    reset_signal_keep_position2(state)
                     send_telegram(msg)
                     send_telegram2(msg)
         elif ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
             state["sell_value"]=df_10m["low"].iloc[-3]
         elif state["sell_value"] is not None:
              if df_10m["ha_close"]<state["sell_value"]:
-                  reset_signal_keep_position2()
+                  reset_signal_keep_position2(state)
                  
                   msg("Profit booked,sell")
                   send_telegram(msg)
@@ -333,15 +333,15 @@ def process_10m_trigger2(smart_api, state):
                     if ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_1_color=="RED":
                         if ha_3["ha_high"]>ha_2["ha_high"]:
                             msg = f"Profit booked,buy it"
-                            reset_signal_keep_position2()
-                            reset_signal_keep_position2()
+                            reset_signal_keep_position2(state)
+                            
                             send_telegram(msg)
                             send_telegram2(msg)
         elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
                 state["sell_value"]=df_10m["low"].iloc[-3]
         elif state["sell_value"] is not None:
              if df_10m["close"]>state["sell_value"]:
-                  reset_signal_keep_position2()
+                  reset_signal_keep_position2(state)
                   msg("Profit booked,buy")
                   send_telegram(msg)
                   send_telegram2(2)
@@ -392,7 +392,7 @@ def main():
                 ltp=get_ltp(smart_api,SYMBOL_INFO)
                 if state["signal"]=="BUY":
                     if(ltp<state["stoploss"]):
-                       reset_signal_keep_position2()
+                       reset_signal_keep_position2(state)
                        state["stoploss"]=None
                        msg="SToploss Hit"
                        send_telegram(msg)
@@ -400,7 +400,7 @@ def main():
                 else:
                     if(ltp>state["stoploss"]):
                        state["stoploss"]=None
-                       reset_signal_keep_position2()
+                       reset_signal_keep_position2(state)
                        msg="SToploss Hit"
                        send_telegram(msg)
                        send_telegram2(msg)
