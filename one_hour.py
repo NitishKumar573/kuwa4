@@ -399,7 +399,7 @@ def main():
                            msg="SToploss Hit"
                            send_telegram(msg)
                            send_telegram2(msg)
-                    else:
+                    elif state["signal"]=="SELL":
                         if(ltp>state["stoploss"]):
                            print("rj")
                            state["stoploss"]=None
