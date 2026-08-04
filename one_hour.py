@@ -271,6 +271,7 @@ def process_10m_trigger2(smart_api, state):
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+            print(state["stoploss"])
             
             log.info(msg)
             send_telegram(msg)
@@ -281,14 +282,16 @@ def process_10m_trigger2(smart_api, state):
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+            print(state["stoploss"])
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
             print("2")
         elif previous["WMA5"] > previous["WMA11"] and current["WMA5"] < current["WMA11"]:
-            exit_price = last_10m["close"]
+            entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
+            print(state["stoploss"])
             state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
             send_telegram(msg)
@@ -297,10 +300,11 @@ def process_10m_trigger2(smart_api, state):
             print("3")
         
         elif ha_c == "RED" and norm_c == "RED":
-            exit_price = last_10m["close"]
+            entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
+            print(state["stoploss"])
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
@@ -310,7 +314,7 @@ def process_10m_trigger2(smart_api, state):
         if ha_1_n_color=="RED" and  ha_1_color=="RED":
             if ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
                 if ha_3["ha_low"]<ha_2["ha_low"]:
-                    msg = f"Profit booked,sell it"
+                    msg = ("Profit booked,sell it")
                     reset_signal_keep_position2()
                     send_telegram(msg)
                     send_telegram2(msg)
@@ -335,7 +339,7 @@ def process_10m_trigger2(smart_api, state):
         elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
                 state["sell_value"]=df_10m["low"].iloc[-3]
         elif state["sell_value"] is not None:
-             if df_10m["ha_close"]>state["sell_value"]:
+             if df_10m["close"]>state["sell_value"]:
                   reset_signal_keep_position2()
                   msg("Profit booked,buy")
                   send_telegram(msg)
