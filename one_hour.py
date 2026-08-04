@@ -387,22 +387,23 @@ def main():
                 last_10m_marker = current_hm
                 process_10m_trigger2(smart_api, state)
                 save_state(state)
-            if state["position"] is not None and state["stoploss"] is not  None:
-                ltp=get_ltp(smart_api,SYMBOL_INFO)
-                if state["signal"]=="BUY":
-                    if(ltp<state["stoploss"]):
-                       reset_signal_keep_position2(state)
-                       state["stoploss"]=None
-                       msg="SToploss Hit"
-                       send_telegram(msg)
-                       send_telegram2(msg)
-                else:
-                    if(ltp>state["stoploss"]):
-                       state["stoploss"]=None
-                       reset_signal_keep_position2(state)
-                       msg="SToploss Hit"
-                       send_telegram(msg)
-                       send_telegram2(msg)
+                if state["position"] is not None and state["stoploss"] is not  None:
+                    ltp=get_ltp(smart_api,SYMBOL_INFO)
+                    if state["signal"]=="BUY":
+                        if(ltp<state["stoploss"]):
+                           reset_signal_keep_position2(state)
+                           state["stoploss"]=None
+                           msg="SToploss Hit"
+                           send_telegram(msg)
+                           send_telegram2(msg)
+                    else:
+                        if(ltp>state["stoploss"]):
+                           print("rj")
+                           state["stoploss"]=None
+                           reset_signal_keep_position2(state)
+                           msg="SToploss Hit"
+                           send_telegram(msg)
+                           send_telegram2(msg)
             save_state(state)
                     
                 
