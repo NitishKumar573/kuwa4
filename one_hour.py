@@ -228,7 +228,6 @@ def get_ltp(smart_api, symbol_info):
 def process_10m_trigger2(smart_api, state):
 
     df_10m = fetch_candles(smart_api, SYMBOL_INFO["token"], SYMBOL_INFO["exchange"], "THREE_MINUTE", 10 * 8)
-    print(df_10m)
     if df_10m is None or df_10m.empty:
         return
 
