@@ -290,7 +290,7 @@ def process_10m_trigger2(smart_api, state):
         elif previous["WMA5"] > previous["WMA11"] and current["WMA5"] < current["WMA11"]:
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-            msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
+            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
             print(state["stoploss"])
             state["stoploss"]=df_10m["low"].iloc[-3]
             log.info(msg)
@@ -302,7 +302,7 @@ def process_10m_trigger2(smart_api, state):
         elif ha_c == "RED" and norm_c == "RED":
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-            msg = f"SELL TRIGGERED: SENSEX @ ~{exit_price}"
+            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
             state["stoploss"]=df_10m["low"].iloc[-3]
             print(state["stoploss"])
             log.info(msg)
