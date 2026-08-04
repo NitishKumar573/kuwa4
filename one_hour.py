@@ -66,6 +66,7 @@ def default_state():
         "stoploss":None,
         "signal":None,
         "sell_value":None,
+        "sell_value2":None,
         "pending_signal_1h_close_time": None,
         "last_processed_1h_time": None,
         "last_processed_10m_time": None,
@@ -78,6 +79,7 @@ def reset_signal_keep_position2(state):
     state["last_processed_10m_time"] = None
     state["signal"] = None
     state["sell_value"] = None
+    state["sell_value2"] = None
 def load_state():
     if os.path.exists(STATE_FILE):
         try:
@@ -324,7 +326,7 @@ def process_10m_trigger2(smart_api, state):
         elif ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
             state["sell_value"]=df_10m["low"].iloc[-3]
         elif state["sell_value"] is not None:
-             if df_10m["ha_close"]<state["sell_value"]:
+             if df_10m["close"].iloc[-2]<state["sell_value"]:
                   reset_signal_keep_position2(state)
                  
                   msg="Profit booked,sell"
@@ -340,9 +342,9 @@ def process_10m_trigger2(smart_api, state):
                             send_telegram(msg)
                             send_telegram2(msg)
         elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
-                state["sell_value"]=df_10m["low"].iloc[-3]
-        elif state["sell_value"] is not None:
-             if df_10m["close"]>state["sell_value"]:
+                state["sell_value2"]=df_10m["low"].iloc[-3]
+        elif state["sell_value2"] is not None:
+             if df_10m["close"].iloc[-2]>state["sell_value"]:
                   reset_signal_keep_position2(state)
                   msg="Profit booked,buy"
                   send_telegram(msg)
