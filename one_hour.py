@@ -328,8 +328,9 @@ def process_10m_trigger2(smart_api, state):
         elif state["sell_value"] is not None and state["signal"]=="BUY":
              if df_10m["close"].iloc[-2]<state["sell_value"]:
                   reset_signal_keep_position2(state)
+                  hel=state["sell_value"]
                  
-                  msg=(f"Profit booked,sell-->Last candle is lower than {state["sell_value"]} which is third last landle low ")
+                  msg=(f"Profit booked,sell-->Last candle is lower than {hel} which is third last landle low ")
                   send_telegram(msg)
                   send_telegram2(2)
         
