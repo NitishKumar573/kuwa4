@@ -73,6 +73,7 @@ def default_state():
     }
 def reset_signal_keep_position2(state):
     state["position"] = None
+    state["stoploss"] = None
     state["pending_signal"] = None
     state["pending_signal_1h_close_time"] = None
     state["last_processed_1h_time"] = None
@@ -263,13 +264,12 @@ def process_10m_trigger2(smart_api, state):
     
 
     
-    print(df_10m)
     if state["position"] is None:
 
         if ha_c == "GREEN" and norm_c == "GREEN":
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
+            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price},When Both candle is green"
             state["stoploss"]=df_10m["low"].iloc[-3]
             state["signal"]="BUY"
             print(state["stoploss"])
@@ -281,7 +281,7 @@ def process_10m_trigger2(smart_api, state):
         elif previous["WMA5"] < previous["WMA11"] and current["WMA5"] > current["WMA11"]:
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price}"
+            msg = f" BUY TRIGGERED: SENSEX @ ~{entry_price},by weighting moving average"
             state["stoploss"]=df_10m["low"].iloc[-3]
             state["signal"]="BUY"
         
@@ -293,10 +293,10 @@ def process_10m_trigger2(smart_api, state):
         elif previous["WMA5"] > previous["WMA11"] and current["WMA5"] < current["WMA11"]:
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
-            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
+            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price},by both candle are red"
             state["signal"]="SELL"
             print(state["stoploss"])
-            state["stoploss"]=df_10m["low"].iloc[-3]
+            state["stoploss"]=df_10m["high"].iloc[-3]
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
@@ -307,48 +307,48 @@ def process_10m_trigger2(smart_api, state):
             entry_price = last_10m["close"]
             state["position"] = {"entry_price": entry_price, "entry_time": last_10m_time}
             state["signal"]="SELL"
-            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price}"
-            state["stoploss"]=df_10m["low"].iloc[-3]
+            msg = f"SELL TRIGGERED: SENSEX @ ~{ entry_price},by weighted moving average"
+            state["stoploss"]=df_10m["high"].iloc[-3]
             print(state["stoploss"])
             log.info(msg)
             send_telegram(msg)
             send_telegram2(msg)
             
             print("4")
-    else:
-        if ha_1_n_color=="RED" and  ha_1_color=="RED":
+    elif state["position"] is not None:
+        if ha_1_n_color=="RED" and  ha_1_color=="RED" and  state["signal"]=="BUY":
             if ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
                 if ha_3["ha_low"]<ha_2["ha_low"]:
-                    msg = ("Profit booked,sell it")
+                    msg = ("Profit booked,sell it-->Last candle is red in both n&ha,second last candle is green in ha and red in n,third candle is green in ha,Low of second candle of ha is greater than low of third candle of ha")
                     reset_signal_keep_position2(state)
                     send_telegram(msg)
                     send_telegram2(msg)
-        elif ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN":
+        elif ha_2_color=="GREEN" and ha_2_n_color=="RED" and ha_3_color=="GREEN" and state["signal"]=="BUY" and state["sell_value"] is None:
             state["sell_value"]=df_10m["low"].iloc[-3]
-        elif state["sell_value"] is not None:
+        elif state["sell_value"] is not None and state["signal"]=="BUY":
              if df_10m["close"].iloc[-2]<state["sell_value"]:
                   reset_signal_keep_position2(state)
                  
-                  msg="Profit booked,sell"
+                  msg=(f"Profit booked,sell-->Last candle is lower than {state["sell_value"]} which is third last landle low ")
                   send_telegram(msg)
                   send_telegram2(2)
         
-        if ha_1_n_color=="GREEN" and  ha_3_color=="GREEN":
-                    if ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_1_color=="RED":
-                        if ha_3["ha_high"]>ha_2["ha_high"]:
-                            msg = f"Profit booked,buy it"
-                            reset_signal_keep_position2(state)
-                            
-                            send_telegram(msg)
-                            send_telegram2(msg)
-        elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
+        if ha_1_n_color=="GREEN" and  ha_1_color=="GREEN" and state["signal"]=="SELL":
+            if ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED":
+                if ha_3["ha_high"]>ha_2["ha_high"]:
+                    msg = (f"Profit booked,buy it-->Last candle is green in both n&ha,second last candle is red in ha and red in n,third candle is red in ha,high of second candle of ha is lower than high of third candle of ha")
+                    reset_signal_keep_position2(state)
+                    
+                    send_telegram(msg)
+                    send_telegram2(msg)
+        elif ha_2_color=="RED" and ha_2_n_color=="GREEN" and ha_3_color=="RED" and state["signal"]=="SELL" and state["sell_value2"] is None:
                 state["sell_value2"]=df_10m["low"].iloc[-3]
-        elif state["sell_value2"] is not None:
-             if df_10m["close"].iloc[-2]>state["sell_value"]:
-                  reset_signal_keep_position2(state)
-                  msg="Profit booked,buy"
-                  send_telegram(msg)
-                  send_telegram2(msg)
+        elif state["sell_value2"] is not None and state["signal"]=="SELL":
+            if df_10m["close"].iloc[-2] > state["sell_value"]:
+                reset_signal_keep_position2(state)
+                msg="Profit booked,buy"
+                send_telegram(msg)
+                send_telegram2(msg)
 
     
     
@@ -395,14 +395,14 @@ def main():
                 if state["position"] is not None and state["stoploss"] is not  None:
                     ltp=get_ltp(smart_api,SYMBOL_INFO)
                     if state["signal"]=="BUY":
-                        if(ltp<state["stoploss"]):
+                        if(ltp < state["stoploss"]):
                            reset_signal_keep_position2(state)
                            state["stoploss"]=None
                            msg="SToploss Hit"
                            send_telegram(msg)
                            send_telegram2(msg)
                     elif state["signal"]=="SELL":
-                        if(ltp>state["stoploss"]):
+                        if(ltp > state["stoploss"]):
                            print("rj")
                            state["stoploss"]=None
                            reset_signal_keep_position2(state)
@@ -421,6 +421,7 @@ def main():
         except Exception as e:
             log.error(f"SENSEX Bot error: {e}", exc_info=True)
             send_telegram(f"⚠️ SENSEX Bot Error: {e}")
+            send_telegram2(f"⚠️ SENSEX Bot Error: {e}")
             time.sleep(30)
 
 if __name__ == "__main__":
